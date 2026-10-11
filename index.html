@@ -20,6 +20,15 @@
     border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;font-size:15px;font-weight:700;
     touch-action:none;user-select:none;-webkit-user-select:none}
   #touch button:active{background:rgba(255,255,255,.3)}
+  /* Steuerung etwas zur Mitte gerückt, damit die Daumen sie gut erreichen */
+  #touch{--in:max(28px,9vw);--low:max(18px,6vh);--step:92px}
+  #touch .b-l{left:var(--in);bottom:var(--low)}
+  #touch .b-r{left:calc(var(--in) + var(--step));bottom:var(--low)}
+  #touch .b-a{right:var(--in);bottom:var(--low);width:84px;height:84px}
+  #touch .b-j{right:calc(var(--in) + var(--step) + 4px);bottom:var(--low)}
+  #touch .b-g{right:var(--in);bottom:calc(var(--low) + var(--step) + 6px);border-color:rgba(255,80,80,.6)}
+  #touch .b-sm{top:10px;width:48px;height:48px;font-size:19px}
+  #touch .b-p{left:calc(50% - 56px)} #touch .b-m{left:calc(50% + 8px)}
   #rotate{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;
     background:#0b0710;color:#fff;font-size:20px;text-align:center;padding:24px;z-index:10}
   #rotate b{font-size:54px}
@@ -29,16 +38,17 @@
 <body>
 <div id="wrap"><canvas id="c"></canvas></div>
 <div id="rotate"><b>⟳</b>Handy quer halten zum Spielen</div>
-<div id="msg"style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-size:18px;line-height:1.5"></div>
+<div id="msg" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-size:18px;line-height:1.5"></div>
 <noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-size:18px;line-height:1.5">
   Diese Vorschau führt das Spiel nicht aus.<br>Öffne die Datei <b>index.html</b> mit Doppelklick im Ordner – sie startet dann in Chrome.</div></noscript>
 <div id="touch">
-  <button data-k="l" style="left:16px;bottom:24px">◀</button>
-  <button data-k="r" style="left:104px;bottom:24px">▶</button>
-  <button data-k="j" style="right:104px;bottom:24px">Sprung</button>
-  <button data-k="a" style="right:16px;bottom:24px">Kralle</button>
-  <button data-k="g" style="right:16px;bottom:112px;border-color:rgba(255,80,80,.6)">WUT</button>
-  <button data-k="m" style="left:50%;top:10px;transform:translateX(-50%);width:48px;height:48px;font-size:20px">🔊</button>
+  <button data-k="l" class="b-l" aria-label="Nach links">◀</button>
+  <button data-k="r" class="b-r" aria-label="Nach rechts">▶</button>
+  <button data-k="j" class="b-j">Sprung</button>
+  <button data-k="a" class="b-a">Kralle</button>
+  <button data-k="g" class="b-g">WUT</button>
+  <button data-k="p" class="b-sm b-p" id="pauseBtn" aria-label="Pause">⏸</button>
+  <button data-k="m" class="b-sm b-m" aria-label="Ton an oder aus">🔊</button>
 </div>
 <script src="assets/sprites.js"></script>
 <script>
@@ -64,12 +74,19 @@ addEventListener('keydown', e => { const k = KEYMAP[e.code]; if (!k) return; e.p
 addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) up(k); });
 const isTouch = matchMedia('(pointer:coarse)').matches;
 if (isTouch) document.getElementById('touch').style.display = 'block';
+const pauseBtn = document.getElementById('pauseBtn');
 document.querySelectorAll('#touch button').forEach(b => {
   const k = b.dataset.k;
   b.addEventListener('pointerdown', e => { e.preventDefault(); down(k); });
   ['pointerup','pointerleave','pointercancel'].forEach(t => b.addEventListener(t, () => up(k)));
 });
-cv.addEventListener('pointerdown', () => { audioInit(); goFullscreen(); if (state !== 'play') pressed.s = true; });
+cv.addEventListener('pointerdown', () => {
+  audioInit(); goFullscreen();
+  if (state !== 'play') pressed.s = true;
+  else if (paused) pressed.p = true;   // in der Pause: irgendwo tippen = weiterspielen
+});
+// App im Hintergrund (Anruf, App-Wechsel) → automatisch pausieren
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') { paused = true; for (const k in keys) keys[k] = false; } });
 document.getElementById('touch').addEventListener('pointerdown', goFullscreen);
 // Im Handy-Browser beim ersten Tippen Vollbild + Querformat anfordern (als installierte App schon automatisch)
 function goFullscreen() {
@@ -859,7 +876,8 @@ function draw() {
     {t: 'Rekord: ' + best.toLocaleString('de-DE')},
     {t: overT > .8 ? (isTouch ? 'Tippen für eine neue Runde' : 'Enter oder J für eine neue Runde') : '', b: true, c: '#fff'}
   ], '#ff3b3b');
-  if (paused && state === 'play') overlay('PAUSE', [{t: 'P oder Esc zum Weiterspielen', b: true}]);
+  if (paused && state === 'play') overlay('PAUSE', [{t: isTouch ? 'Tippen oder ▶ zum Weiterspielen' : 'P oder Esc zum Weiterspielen', b: true}]);
+  if (pauseBtn) { const icon = paused && state === 'play' ? '▶' : '⏸'; if (pauseBtn.textContent !== icon) pauseBtn.textContent = icon; pauseBtn.style.visibility = state === 'play' ? 'visible' : 'hidden'; }
 }
 
 // ---------- Schleife ----------
