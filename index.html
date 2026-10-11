@@ -37,6 +37,8 @@
 </head>
 <body>
 <div id="wrap"><canvas id="c"></canvas></div>
+<button id="install" hidden style="position:fixed;top:12px;left:12px;z-index:6;padding:10px 16px;border-radius:999px;border:0;
+  background:#ff6a3d;color:#1a0c06;font:700 14px system-ui;cursor:pointer">App installieren</button>
 <div id="rotate"><b>⟳</b>Handy quer halten zum Spielen</div>
 <div id="msg" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-size:18px;line-height:1.5"></div>
 <noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff;font-size:18px;line-height:1.5">
@@ -95,6 +97,12 @@ function goFullscreen() {
 }
 // Offline-Cache für die installierte App (nur online, nicht bei Doppelklick auf die Datei)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+// Knopf „App installieren“ im Startbildschirm, sobald der Browser die Installation anbietet
+const installBtn = document.getElementById('install');
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+addEventListener('appinstalled', () => { installEvt = null; });
+installBtn.addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; });
 
 // ---------- Sound (alles im Browser erzeugt, keine Dateien) ----------
 let AC = null, master, musicBus, NB, muted = false;
@@ -877,6 +885,7 @@ function draw() {
     {t: overT > .8 ? (isTouch ? 'Tippen für eine neue Runde' : 'Enter oder J für eine neue Runde') : '', b: true, c: '#fff'}
   ], '#ff3b3b');
   if (paused && state === 'play') overlay('PAUSE', [{t: isTouch ? 'Tippen oder ▶ zum Weiterspielen' : 'P oder Esc zum Weiterspielen', b: true}]);
+  installBtn.hidden = !(installEvt && state !== 'play');
   if (pauseBtn) { const icon = paused && state === 'play' ? '▶' : '⏸'; if (pauseBtn.textContent !== icon) pauseBtn.textContent = icon; pauseBtn.style.visibility = state === 'play' ? 'visible' : 'hidden'; }
 }
 
